@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Todo API for Amplify
+
+Parameters:
+
+  BranchName:
+    Description: the gitbranch name
+    Type: String
+  
+  AmplifyAppId:
+    Description: the app id assigned by amplify
+    Type: String
+    Default: d3q98mpsf57reu
+
+Globals:
+  Function:
+    Timeout: 600
+
+Resources:
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      BranchName: !Ref BranchName
+      AppId: !Ref AmplifyAppId
+      EnableAutoBuild: true
+      EnvironmentVariables:
+        - Name: TODO_API_ENDPOINT
+          Value: !Sub https://${BasicAWSApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${BranchName}/
+
+  BasicAWSApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: Basic AWS Api Gateway
+      StageName: !Ref BranchName
+
+  ExpressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: todos/
+      Handler: lambda.handler
+      Runtime: nodejs14.x
+      MemorySize: 1024
+      Events:
+        ExpressFunctionProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BasicAWSApiGateway
+            Path: '/{proxy+}'
+            Method: ANY
+        ExpressFunctionRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BasicAWSApiGateway
+            Path: '/'
+            Method: ANY
+
+Outputs:
+
+  TodoApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${BasicAWSApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${BranchName}/"
